@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>833 Audio Portal</title>
+    <script src="cdn.jsdelivr.net"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
+        .logo { max-width: 200px; margin-bottom: 30px; }
+        .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 400px; margin: 0 auto; }
+        audio { width: 100%; margin-top: 20px; }
+        .status { color: #00ff00; font-size: 12px; margin-bottom: 10px; }
+        input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
+        button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; }
+    </style>
+</head>
+<body>
+    <img src="logo.png" alt="Logo" class="logo">
+    <div id="app" class="player-box">
+        <h2>Skriv inn kode</h2>
+        <input type="text" id="code" placeholder="KODE">
+        <button onclick="unlock()">START LYTTING</button>
+    </div>
+
+    <script>
+        function unlock() {
+            const code = document.getElementById('code').value.toUpperCase();
+            if (code === "833") { // Testkode
+                document.getElementById('app').innerHTML = `
+                    <div class="status">● LIVE AUDIO</div>
+                    <audio id="audio" controls autoplay></audio>
+                    <p style="font-size: 12px; color: #666; margin-top: 20px;">Bufferer for stabilitet...</p>
+                `;
+                var audio = document.getElementById('audio');
+                var audioSrc = 'lydstream1.tail173237.ts.net';
+                if (Hls.isSupported()) {
+                    var hls = new Hls({ lowLatencyMode: true });
+                    hls.loadSource(audioSrc);
+                    hls.attachMedia(audio);
+                } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                    audio.src = audioSrc;
+                }
+            } else { alert("Feil kode"); }
+        }
+    </script>
+</body>
+</html>
