@@ -23,26 +23,38 @@
         <button onclick="unlock()">START LYTTING</button>
     </div>
 
-    <script>
+       <script>
         function unlock() {
             const code = document.getElementById('code').value.toUpperCase();
-            if (code === "833") { // Testkode
+            if (code === "833") {
                 document.getElementById('app').innerHTML = `
                     <div class="status">● LIVE AUDIO</div>
-                    <audio id="audio" controls autoplay></audio>
-                    <p style="font-size: 12px; color: #666; margin-top: 20px;">Bufferer for stabilitet...</p>
+                    <audio id="audio" controls autoplay playsinline style="width:100%; margin-top:20px;"></audio>
+                    <p id="msg" style="font-size: 12px; color: #666; margin-top: 10px;">Kobler til strøm...</p>
                 `;
+                
                 var audio = document.getElementById('audio');
                 var audioSrc = 'lydstream1.tail173237.ts.net';
+                
                 if (Hls.isSupported()) {
-                    var hls = new Hls({ lowLatencyMode: true });
+                    var hls = new Hls({
+                        lowLatencyMode: true,
+                        backBufferLength: 0,
+                        initialLiveManifestSize: 1, // Start med en gang første bit er klar
+                        manifestLoadingMaxRetry: 10
+                    });
                     hls.loadSource(audioSrc);
                     hls.attachMedia(audio);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        document.getElementById('msg').innerText = "Klar! Trykk PLAY hvis den ikke starter.";
+                        audio.play().catch(e => {
+                            console.log("Autoplay blokkert - bruker må trykke selv");
+                        });
+                    });
                 } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                     audio.src = audioSrc;
                 }
             } else { alert("Feil kode"); }
         }
     </script>
-</body>
-</html>
+ 
