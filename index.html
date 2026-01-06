@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- Stabile 2026-biblioteker -->
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <!-- Oppdaterte 2026-lenker fra UNPKG som ikke gir 404 -->
+    <script src="unpkg.com"></script>
+    <script src="unpkg.com"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -14,9 +14,8 @@
         audio { width: 100%; margin-top: 20px; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
         button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; }
-        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
         .vol-control { margin-top: 25px; padding: 15px; background: #222; border-radius: 10px; }
-        input[type=range] { width: 100%; margin-top: 10px; }
+        input[type=range] { width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -51,20 +50,20 @@
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
-                <div class="status">● LIVE STREAM</div>
+                <h3 style="color:#00ff00;">● LIVE FRA 833</h3>
                 <audio id="audio" controls autoplay playsinline></audio>
                 <div class="vol-control">
-                    <label style="font-size:12px; color:#aaa;">EKSTRA VOLUM (BOOST)</label>
+                    <label style="font-size:12px; color:#aaa;">VOLUM BOOST (GAIN)</label>
                     <input type="range" id="gainSlider" min="1" max="5" step="0.1" value="1">
-                    <p id="volValue" style="font-size:10px; color:#666;">Nivå: 1.0x</p>
+                    <p id="volValue" style="font-size:10px; color:#666;">Forsterkning: 1.0x</p>
                 </div>
-                <p id="msg" style="font-size: 12px; color: #888; margin-top:15px;">Kobler til...</p>
+                <p id="msg" style="font-size: 11px; color: #888; margin-top:15px;">Kobler til...</p>
             `;
 
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Web Audio API for Volum Boost
+            // Lyd-forsterker modul
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
@@ -73,15 +72,15 @@
 
             document.getElementById('gainSlider').oninput = function() {
                 gainNode.gain.value = this.value;
-                document.getElementById('volValue').innerText = "Nivå: " + this.value + "x";
+                document.getElementById('volValue').innerText = "Forsterkning: " + this.value + "x";
             };
 
-            if (Hls.isSupported()) {
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
                 const hls = new Hls({ lowLatencyMode: false, maxBufferLength: 20 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    document.getElementById('msg').innerText = "Tilkoblet! Trykk PLAY.";
+                    document.getElementById('msg').innerText = "Tilkoblet. Trykk PLAY.";
                     audio.onplay = () => audioCtx.resume();
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
