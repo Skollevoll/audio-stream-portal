@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- Eksplisitte 2026-baner for å unngå 404 -->
-    <script src="unpkg.com"></script>
-    <script src="unpkg.com"></script>
+    <!-- De mest stabile lenkene for 2026 -->
+    <script src="cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -30,7 +30,7 @@
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
 
-        // Forsøker å laste Supabase med fallback
+        // Initialiserer Supabase når siden er lastet
         window.onload = function() {
             if (window.supabase) {
                 _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -40,19 +40,23 @@
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
             
-            // NØD-BACKUP: Hvis biblioteket feiler, la 833 fungere uansett
+            // Backup-kode hvis databasen ikke svarer
             if (inputCode === "833") {
                 startPlayer();
                 return;
             }
 
             if (!_supabase) {
-                alert("Laster database... prøv igjen om 2 sekunder.");
+                alert("Laster systemet... prøv igjen om 2 sekunder.");
                 return;
             }
 
-            const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
-            if (data) startPlayer(); else alert("Ugyldig kode.");
+            try {
+                const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
+                if (data) startPlayer(); else alert("Ugyldig kode.");
+            } catch (err) {
+                alert("Database-feil. Bruk koden 833.");
+            }
         }
 
         function startPlayer() {
@@ -60,7 +64,7 @@
                 <h3 style="color:#00ff00;">● LIVE FRA 833</h3>
                 <audio id="audio" crossorigin="anonymous" controls autoplay playsinline></audio>
                 <div class="vol-control">
-                    <label style="font-size:12px; color:#aaa;">VOLUM BOOST</label>
+                    <label style="font-size:12px; color:#aaa;">VOLUM BOOST (GAIN)</label>
                     <input type="range" id="gainSlider" min="1" max="5" step="0.1" value="1" style="width:100%;">
                     <p id="volValue" style="font-size:10px; color:#666;">Nivå: 1.0x</p>
                 </div>
@@ -69,7 +73,7 @@
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Lyd-forsterkning
+            // Web Audio API for volumforsterkning
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
@@ -81,9 +85,10 @@
                 document.getElementById('volValue').innerText = "Nivå: " + this.value + "x";
             };
 
-            const hlsProvider = window.Hls || Hls;
+            // Hls-håndtering
+            const hlsProvider = window.Hls;
             if (hlsProvider && hlsProvider.isSupported()) {
-                const hls = new hlsProvider({ lowLatencyMode: false });
+                const hls = new hlsProvider({ lowLatencyMode: false, maxBufferLength: 20 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(hlsProvider.Events.MANIFEST_PARSED, () => {
