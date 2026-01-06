@@ -5,56 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
     <script src="cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
-        .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px;display: inline-block; }
+        .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
         .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 400px; margin: 0 auto; }
         audio { width: 100%; margin-top: 20px; }
-        .status { color: #00ff00; font-size: 12px; margin-bottom: 10px; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
         button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; }
+        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
         <h2>Skriv inn kode</h2>
-        <input type="text" id="code" placeholder="KODE">
-        <button onclick="unlock()">START LYTTING</button>
+        <input type="text" id="code" placeholder="DIN KODE">
+        <button onclick="checkAccess()">LOGG INN</button>
     </div>
 
-       <script>
-        function unlock() {
-            const code = document.getElementById('code').value.toUpperCase();
-            if (code === "833") {
-                document.getElementById('app').innerHTML = `
-                    <div class="status">● LIVE AUDIO</div>
-                    <audio id="audio" controls autoplay playsinline style="width:100%; margin-top:20px;"></audio>
-                    <p id="msg" style="font-size: 12px; color: #666; margin-top: 10px;">Kobler til strøm...</p>
-                `;
-                
-                var audio = document.getElementById('audio');
-                var audioSrc = 'lydstream1.tail173237.ts.net';
-                
-                if (Hls.isSupported()) {
-                    var hls = new Hls({
-                        lowLatencyMode: true,
-                        backBufferLength: 0,
-                        initialLiveManifestSize: 1, // Start med en gang første bit er klar
-                        manifestLoadingMaxRetry: 10
-                    });
-                    hls.loadSource(audioSrc);
-                    hls.attachMedia(audio);
-                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                        document.getElementById('msg').innerText = "Klar! Trykk PLAY hvis den ikke starter.";
-                        audio.play().catch(e => {
-                            console.log("Autoplay blokkert - bruker må trykke selv");
-                        });
-                    });
-                } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-                    audio.src = audioSrc;
-                }
-            } else { alert("Feil kode"); }
+    <script>
+        const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
+        const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_Busynas';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function checkAccess() {
+            const inputCode = document.getElementById('code').value.toUpperCase();
+            const { data, error } = await _supabase
+                .from('access_codes')
+                .select('*')
+                .eq('code', inputCode)
+                .eq('is_active', true)
+                .single();
+
+            if (data) {
+                startPlayer();
+            } else {
+                alert("Ugyldig eller utløpt kode.");
+            }
+        }
+
+        function startPlayer() {
+            document.getElementById('app').innerHTML = `
+                <div class="status">● LIVE STREAM</div>
+                <audio id="audio" controls autoplay playsinline></audio>
+                <p id="msg" style="font-size: 12px; color: #888;">Bufferer for stabilitet...</p>
+            `;
+            
+            const audio = document.getElementById('audio');
+            const streamUrl = 'lydstream1.tail173237.ts.net';
+            
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    lowLatencyMode: true,
+                    maxBufferLength: 20, // Økt buffer for å fjerne hakk
+                    initialLiveManifestSize: 2
+                });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(audio);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    document.getElementById('msg').innerText = "Tilkoblet. Trykk PLAY hvis lyden ikke starter.";
+                    audio.play();
+                });
+            } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                audio.src = streamUrl;
+            }
         }
     </script>
- 
+</body>
+</html>
