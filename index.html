@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- Korrekte lenker med https:// foran -->
+    <!-- Eksplisitte 2026-baner for å unngå 404 -->
     <script src="unpkg.com"></script>
     <script src="unpkg.com"></script>
     <style>
@@ -30,15 +30,29 @@
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
 
-        window.onload = () => { if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey); };
+        // Forsøker å laste Supabase med fallback
+        window.onload = function() {
+            if (window.supabase) {
+                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            }
+        };
 
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
-            if (inputCode === "833") { startPlayer(); return; }
-            try {
-                const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
-                if (data) startPlayer(); else alert("Ugyldig kode.");
-            } catch (err) { alert("Bruk koden 833."); }
+            
+            // NØD-BACKUP: Hvis biblioteket feiler, la 833 fungere uansett
+            if (inputCode === "833") {
+                startPlayer();
+                return;
+            }
+
+            if (!_supabase) {
+                alert("Laster database... prøv igjen om 2 sekunder.");
+                return;
+            }
+
+            const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
+            if (data) startPlayer(); else alert("Ugyldig kode.");
         }
 
         function startPlayer() {
@@ -55,6 +69,7 @@
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
+            // Lyd-forsterkning
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
@@ -66,14 +81,17 @@
                 document.getElementById('volValue').innerText = "Nivå: " + this.value + "x";
             };
 
-            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                const hls = new Hls({ lowLatencyMode: false });
+            const hlsProvider = window.Hls || Hls;
+            if (hlsProvider && hlsProvider.isSupported()) {
+                const hls = new hlsProvider({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                hls.on(hlsProvider.Events.MANIFEST_PARSED, () => {
                     audio.onplay = () => audioCtx.resume();
                     audio.play();
                 });
+            } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                audio.src = streamUrl;
             }
         }
     </script>
