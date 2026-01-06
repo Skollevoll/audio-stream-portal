@@ -47,9 +47,12 @@
             alert("Feil kode eller systemet laster. Prøv 833.");
         }
 
-        function startPlayer() {
+               function startPlayer() {
             document.getElementById('app').innerHTML = `
-                <div class="status">● LIVE FRA 833</div>
+                <div class="status">● LIVE STREAM</div>
+                <!-- Tidskode-display -->
+                <div id="tc-box" style="font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #111; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5);">00:00:00:00</div>
+                
                 <audio id="audio" crossorigin="anonymous" controls autoplay playsinline style="width:100%;"></audio>
                 <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet med 10x Boost</p>
             `;
@@ -57,7 +60,7 @@
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Fast 10x volumforsterkning
+            // 10x Volum boost (behold denne fra i stad)
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
@@ -65,18 +68,27 @@
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
+            // Hent LIVE TIDSKODE fra Supabase hvert 500ms
+            setInterval(async () => {
+                const { data, error } = await _supabase.from('live_metadata').select('timecode').eq('id', 1).single();
+                if (data && data.timecode) {
+                    document.getElementById('tc-box').innerText = data.timecode;
+                }
+            }, 500);
+
             if (window.Hls && window.Hls.isSupported()) {
                 const hls = new window.Hls({ lowLatencyMode: false, maxBufferLength: 20 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
                     audio.onplay = () => audioCtx.resume();
-                    audio.play().catch(e => { document.getElementById('msg').innerText = "Trykk PLAY for lyd"; });
+                    audio.play();
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
         }
+
     </script>
 </body>
 </html>
