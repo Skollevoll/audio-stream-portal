@@ -52,25 +52,49 @@
         function startPlayer() {
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
+                <img src="logo.png" alt="Logo" style="max-width:150px; margin-bottom:10px; background:white; padding:10px; border-radius:10px;">
                 <audio id="audio" controls autoplay playsinline style="width:100%;"></audio>
-                <p id="msg" style="font-size: 12px; color: #888;">Kobler til lyd fra 833...</p>
+                
+                <div style="margin-top:20px; padding:15px; background:#222; border-radius:10px;">
+                    <label style="display:block; margin-bottom:10px; font-size:14px; color:#aaa;">EKSTRA VOLUM (GAIN)</label>
+                    <input type="range" id="volumeSlider" min="1" max="4" step="0.1" value="1" style="width:100%;">
+                    <p id="volText" style="font-size:12px; color:#666;">Normalt nivå (1x)</p>
+                </div>
+                
+                <p id="msg" style="font-size: 12px; color: #888; margin-top:15px;">Kobler til lyd fra 833...</p>
             `;
             
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
-            
-            // Sjekker om Hls-biblioteket faktisk er lastet
-            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            const slider = document.getElementById('volumeSlider');
+            const volText = document.getElementById('volText');
+
+            // Web Audio API for å booste lyden
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(audio);
+            const gainNode = audioCtx.createGain();
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            slider.oninput = function() {
+                gainNode.gain.value = this.value;
+                volText.innerText = "Forsterkning: " + this.value + "x";
+            };
+
+            if (Hls.isSupported()) {
                 const hls = new Hls({ lowLatencyMode: false, maxBufferLength: 20 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     document.getElementById('msg').innerText = "Tilkoblet! Trykk PLAY.";
-                    audio.play().catch(e => console.log("Manuell start nødvendig"));
+                    // Må ofte starte AudioContext etter brukerinteraksjon
+                    audio.onplay = () => audioCtx.resume();
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-                // Innebygd støtte for iPhone Safari
                 audio.src = streamUrl;
+            }
+        }
+
                 document.getElementById('msg').innerText = "Tilkoblet! Trykk PLAY.";
             } else {
                 alert("Nettleseren din støtter ikke denne lydstrømmen.");
