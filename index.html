@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- Oppdaterte og fungerende biblioteker for 2026 -->
-    <script src="unpkg.com"></script>
+    <!-- Stabil CDN-lenke for 2026 -->
+    <script src="cdn.jsdelivr.net"></script>
     <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
@@ -30,12 +30,25 @@
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         
-        // Initialiserer Supabase-klienten på riktig måte for 2026
-        const _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let _supabase;
+
+        // Sikrer at biblioteket er lastet før vi lager klienten
+        window.onload = function() {
+            if (window.supabase) {
+                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                console.error("Supabase-biblioteket ble ikke lastet!");
+            }
+        };
 
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
             
+            if (!_supabase) {
+                alert("Systemet er ikke klart ennå. Vennligst vent litt eller last siden på nytt.");
+                return;
+            }
+
             try {
                 const { data, error } = await _supabase
                     .from('access_codes')
@@ -47,7 +60,7 @@
                 if (data) {
                     startPlayer();
                 } else {
-                    alert("Ugyldig kode. Sjekk med lydtekniker.");
+                    alert("Ugyldig kode.");
                 }
             } catch (err) {
                 console.error("Databasefeil:", err);
@@ -59,18 +72,14 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
                 <audio id="audio" controls autoplay playsinline></audio>
-                <p id="msg" style="font-size: 12px; color: #888;">Bufferer for stabilitet...</p>
+                <p id="msg" style="font-size: 12px; color: #888;">Kobler til strøm...</p>
             `;
             
             const audio = document.getElementById('audio');
             const streamUrl = 'lydstream1.tail173237.ts.net';
             
             if (Hls.isSupported()) {
-                const hls = new Hls({
-                    lowLatencyMode: true,
-                    maxBufferLength: 15,
-                    initialLiveManifestSize: 1
-                });
+                const hls = new Hls({ lowLatencyMode: true });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
