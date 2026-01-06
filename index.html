@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <!-- Nye, stabile 2026-lenker -->
+    <script src="unpkg.com"></script>
+    <script src="unpkg.com"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -39,11 +40,13 @@
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
             if (inputCode === "833") { startPlayer(); return; }
+            
             if (!_supabase) { initSupabase(); }
+            
             try {
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) { startPlayer(); } else { alert("Ugyldig kode."); }
-            } catch (err) { alert("Feil ved kodesjekk. Bruk 833."); }
+            } catch (err) { alert("Database-feil. Bruk koden 833."); }
         }
 
         function startPlayer() {
@@ -52,18 +55,25 @@
                 <audio id="audio" controls autoplay playsinline style="width:100%;"></audio>
                 <p id="msg" style="font-size: 12px; color: #888;">Kobler til lyd fra 833...</p>
             `;
+            
             const audio = document.getElementById('audio');
-            const streamUrl = 'http://lydstream1.tail173237.ts.net/mystream/index.m3u8';
-            if (Hls.isSupported()) {
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            
+            // Sjekker om Hls-biblioteket faktisk er lastet
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
                 const hls = new Hls({ lowLatencyMode: false, maxBufferLength: 20 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     document.getElementById('msg').innerText = "Tilkoblet! Trykk PLAY.";
-                    audio.play().catch(e => console.log("Trykk manuelt"));
+                    audio.play().catch(e => console.log("Manuell start nødvendig"));
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                // Innebygd støtte for iPhone Safari
                 audio.src = streamUrl;
+                document.getElementById('msg').innerText = "Tilkoblet! Trykk PLAY.";
+            } else {
+                alert("Nettleseren din støtter ikke denne lydstrømmen.");
             }
         }
     </script>
