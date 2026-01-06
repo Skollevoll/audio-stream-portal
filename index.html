@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
+    <!-- Stabile 2026-lenker: jsDelivr brukes for pålitelighet -->
     <script src="cdn.jsdelivr.net"></script>
     <script src="cdn.jsdelivr.net"></script>
     <style>
@@ -29,45 +30,52 @@
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
 
-        window.onload = () => { if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey); };
+        // Sikrer at biblioteket lastes før vi prøver å bruke det
+        window.onload = function() {
+            if (window.supabase) {
+                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            }
+        };
 
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
+            // NØD-BACKUP: 833 fungerer uansett database-status
             if (inputCode === "833") { startPlayer(); return; }
+            if (!_supabase) { alert("Systemet laster fortsatt... prøv igjen om 2 sekunder."); return; }
+
             try {
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) startPlayer(); else alert("Ugyldig kode.");
-            } catch (err) { startPlayer(); } // Nødløsning hvis database svikter
+            } catch (err) { alert("Database-feil. Bruk koden 833."); }
         }
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
-                <audio id="audio" crossorigin="anonymous" controls autoplay playsinline></audio>
+                <!-- crossorigin="anonymous" er påkrevd for AudioContext forsterkning -->
+                <audio id="audio" crossorigin="anonymous" controls autoplay playsinline style="width:100%;"></audio>
                 <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet med 10x Boost</p>
             `;
 
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Web Audio API for fast 10x volumforsterkning
+            // Fast 10x volumforsterkning via Web Audio API
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
-            
-            // HER SETTER VI VOLUMET TIL 10x
             gainNode.gain.value = 10.0; 
-            
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            if (Hls.isSupported()) {
-                const hls = new Hls({ lowLatencyMode: false, maxBufferLength: 10 });
+            const hlsProvider = window.Hls;
+            if (hlsProvider && hlsProvider.isSupported()) {
+                const hls = new hlsProvider({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    audio.onplay = () => audioCtx.resume();
-                    audio.play();
+                hls.on(hlsProvider.Events.MANIFEST_PARSED, () => {
+                    audio.onplay = () => audioCtx.resume(); // Viktig for iOS/Chrome
+                    audio.play().catch(e => console.log("Manuell start nødvendig"));
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
