@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- De mest stabile lenkene for 2026 -->
     <script src="cdn.jsdelivr.net"></script>
     <script src="cdn.jsdelivr.net"></script>
     <style>
@@ -14,7 +13,7 @@
         audio { width: 100%; margin-top: 20px; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
         button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; }
-        .vol-control { margin-top: 25px; padding: 15px; background: #222; border-radius: 10px; }
+        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -30,68 +29,43 @@
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
 
-        // Initialiserer Supabase når siden er lastet
-        window.onload = function() {
-            if (window.supabase) {
-                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-            }
-        };
+        window.onload = () => { if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey); };
 
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
-            
-            // Backup-kode hvis databasen ikke svarer
-            if (inputCode === "833") {
-                startPlayer();
-                return;
-            }
-
-            if (!_supabase) {
-                alert("Laster systemet... prøv igjen om 2 sekunder.");
-                return;
-            }
-
+            if (inputCode === "833") { startPlayer(); return; }
             try {
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) startPlayer(); else alert("Ugyldig kode.");
-            } catch (err) {
-                alert("Database-feil. Bruk koden 833.");
-            }
+            } catch (err) { startPlayer(); } // Nødløsning hvis database svikter
         }
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
-                <h3 style="color:#00ff00;">● LIVE FRA 833</h3>
+                <div class="status">● LIVE STREAM</div>
                 <audio id="audio" crossorigin="anonymous" controls autoplay playsinline></audio>
-                <div class="vol-control">
-                    <label style="font-size:12px; color:#aaa;">VOLUM BOOST (GAIN)</label>
-                    <input type="range" id="gainSlider" min="1" max="5" step="0.1" value="1" style="width:100%;">
-                    <p id="volValue" style="font-size:10px; color:#666;">Nivå: 1.0x</p>
-                </div>
+                <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet med 10x Boost</p>
             `;
 
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Web Audio API for volumforsterkning
+            // Web Audio API for fast 10x volumforsterkning
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
+            
+            // HER SETTER VI VOLUMET TIL 10x
+            gainNode.gain.value = 10.0; 
+            
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            document.getElementById('gainSlider').oninput = function() {
-                gainNode.gain.value = this.value;
-                document.getElementById('volValue').innerText = "Nivå: " + this.value + "x";
-            };
-
-            // Hls-håndtering
-            const hlsProvider = window.Hls;
-            if (hlsProvider && hlsProvider.isSupported()) {
-                const hls = new hlsProvider({ lowLatencyMode: false, maxBufferLength: 20 });
+            if (Hls.isSupported()) {
+                const hls = new Hls({ lowLatencyMode: false, maxBufferLength: 10 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(hlsProvider.Events.MANIFEST_PARSED, () => {
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     audio.onplay = () => audioCtx.resume();
                     audio.play();
                 });
