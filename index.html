@@ -10,36 +10,46 @@
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
         .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; box-sizing: border-box; }
-        
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
-        
-        /* Skjuler den originale spilleren */
         audio { display: none; }
-
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
         
-        /* Ny lekker knappestil */
-        .main-btn { padding: 18px 30px; background: #fff; color: #000; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; width: 80%; font-size: 18px; transition: 0.2s; }
-        .main-btn:active { transform: scale(0.95); background: #ccc; }
-        .pause-style { background: #333; color: #fff; border: 1px solid #444; }
-
-        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
+        /* Enkel Play/Pause knapp */
+        .play-btn { 
+            padding: 20px; 
+            background: #fff; 
+            color: #000; 
+            border: none; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            width: 80px; 
+            height: 80px; 
+            font-size: 30px; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto;
+            transition: transform 0.1s;
+        }
+        .play-btn:active { transform: scale(0.9); }
+        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
+        
         @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
 </head>
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
-        <h2>Skriv inn kode</h2>
-        <input type="text" id="code" placeholder="DIN KODE" inputmode="numeric">
-        <button class="main-btn" onclick="checkAccess()">LOGG INN</button>
+        <h2>Kode</h2>
+        <input type="text" id="code" placeholder="----" inputmode="numeric">
+        <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%;" onclick="checkAccess()">LOGG INN</button>
     </div>
 
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
-        let _supabase;
-        let audioCtx, source, gainNode, hls;
+        let _supabase, audioCtx, source, gainNode, hls;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -52,47 +62,44 @@
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) { startPlayer(); return; }
             }
-            alert("Feil kode. Prøv 833.");
+            alert("Feil kode.");
         }
 
         function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
 
-            if (!audioCtx) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
-                source = audioCtx.createMediaElementSource(audio);
-                gainNode = audioCtx.createGain();
-                gainNode.gain.value = 10.0;
-                source.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
             if (audio.paused) {
-                audioCtx.resume();
                 audio.play();
-                btn.innerText = "PAUSE STREAM";
-                btn.classList.add('pause-style');
+                btn.innerHTML = "||"; // Pause-symbol
             } else {
                 audio.pause();
-                btn.innerText = "START LYD (10X BOOST)";
-                btn.classList.remove('pause-style');
+                btn.innerHTML = "▶"; // Play-symbol
             }
         }
 
         function startPlayer() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
             document.getElementById('app').innerHTML = `
-                <div class="status">● LIVE STREAM</div>
+                <div class="status">● LIVE</div>
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline></audio>
-                <button id="control-btn" class="main-btn" onclick="togglePlay()">START LYD (10X BOOST)</button>
-                <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Enhet: lydstream1</p>
+                <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
             `;
 
             const audio = document.getElementById('audio');
             const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
+            source = audioCtx.createMediaElementSource(audio);
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 10.0;
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
             function startClock() {
                 const tcBox = document.getElementById('tc-box');
                 function update() {
