@@ -13,12 +13,13 @@
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
         .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
+        @media (max-width: 500px) { #tc-box { font-size: 34px; } }
     </style>
 </head>
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
-        <h2>Kode</h2>
+        <h2>Skriv inn kode</h2>
         <input type="text" id="code" placeholder="----" inputmode="numeric">
         <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; width: 80%;" onclick="checkAccess()">LOGG INN</button>
     </div>
@@ -26,7 +27,7 @@
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
-        let _supabase, audioCtx, gainNode, hls, source;
+        let _supabase, audioCtx, hls;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -47,24 +48,25 @@
             const btn = document.getElementById('control-btn');
 
             if (audio.paused) {
-                // VIKTIG: Start lyden FØRST
-                await audio.play();
-                btn.innerHTML = "||";
-
-                // Koble på boost etter at vi vet lyden er i gang
+                // Initialiser AudioContext KUN ved klikk
                 if (!audioCtx) {
-                    try {
-                        const AudioContext = window.AudioContext || window.webkitAudioContext;
-                        audioCtx = new AudioContext();
-                        source = audioCtx.createMediaElementSource(audio);
-                        gainNode = audioCtx.createGain();
-                        gainNode.gain.value = 10.0;
-                        source.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
-                        console.log("Boost tilkoblet!");
-                    } catch (e) { console.log("Boost-feil:", e); }
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioCtx.createMediaElementSource(audio);
+                    const gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 10.0;
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
                 }
-                if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                audio.play().then(() => {
+                    btn.innerHTML = "||";
+                }).catch(err => {
+                    console.log("Play feilet:", err);
+                    // Fallback uten boost hvis det kræsjer
+                    audio.play();
+                });
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -73,7 +75,7 @@
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
-                <div class="status">● LIVE</div>
+                <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
@@ -82,7 +84,7 @@
             const audio = document.getElementById('audio');
             const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokke (8 sek forskyvning)
+            // Klokke (Norsk tid 2026 minus 8 sekunder)
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -99,7 +101,7 @@
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
-                    if (data.fatal) hls.recoverMediaError(); // Fikser ERR_NETWORK_CHANGED automatisk
+                    if (data.fatal) hls.recoverMediaError();
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
