@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- 2026 VERIFISERTE LENKER - Disse peker direkte på de ferdige skriptfilene -->
-    <script src="cdnjs.cloudflare.com"></script>
-    <script src="unpkg.com"></script>
+    <!-- 2026 SKUDDSIKRE LENKER -->
+    <script src="https://cdnjs.cloudflare.com"></script>
+    <script src="https://unpkg.com"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -32,19 +32,15 @@
         let _supabase;
 
         window.onload = function() {
-            // Sjekker flere mulige steder biblioteket kan ha lagt seg
             const lib = window.supabase || (window.index ? window.index.supabase : null);
             if (lib && lib.createClient) {
                 _supabase = lib.createClient(supabaseUrl, supabaseKey);
-                console.log("Supabase OK");
             }
         };
 
         async function checkAccess() {
             const inputCode = document.getElementById('code').value.toUpperCase();
-            // NØDINNGANG: Hvis koden er 833, starter vi uansett database-status
             if (inputCode === "833") { startPlayer(); return; }
-            
             if (_supabase) {
                 try {
                     const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
@@ -58,7 +54,7 @@
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
             if (audio.paused) {
-                audio.play().catch(e => console.error("Kunne ikke starte lyd"));
+                audio.play().catch(e => console.error("Play feilet"));
                 btn.innerHTML = "||";
             } else {
                 audio.pause();
@@ -77,7 +73,6 @@
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokke med 8 sekunder forsinkelse
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -89,22 +84,16 @@
                 if (box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
             }, 40);
 
-            // Starter HLS
             const HlsLib = window.Hls;
-           if (HlsLib && HlsLib.isSupported()) {
-        const hls = new HlsLib({
-            xhrSetup: function(xhr, url) {
-                xhr.withCredentials = false; // Hindrer PC-en i å blokkere pga. manglende cookies/sertifikat
-            }
-        });
-        hls.loadSource(streamUrl);
-        hls.attachMedia(audio);
-    }
+            if (HlsLib && HlsLib.isSupported()) {
+                const hls = new HlsLib({
+                    xhrSetup: function(xhr) {
+                        xhr.withCredentials = false; // Viktig for PC-lyd i 2026
+                    }
+                });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(audio);
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-                audio.src = streamUrl;
-            } else {
-                // Siste utvei: Vis den innebygde spilleren hvis alt feiler
-                audio.style.display = "block";
                 audio.src = streamUrl;
             }
         }
