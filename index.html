@@ -50,30 +50,26 @@
             const btn = document.getElementById('control-btn');
 
             if (audio.paused) {
-                try {
-                    // Start avspilling
-                    await audio.play();
-                    btn.innerHTML = "||";
-
-                    // Forsøk å koble til 10x Boost (fungerer på PC, feiler ofte på mobil)
-                    if (!audioCtx) {
-                        try {
-                            const AudioContext = window.AudioContext || window.webkitAudioContext;
-                            audioCtx = new AudioContext();
-                            source = audioCtx.createMediaElementSource(audio);
-                            gainNode = audioCtx.createGain();
-                            gainNode.gain.value = 10.0;
-                            source.connect(gainNode);
-                            gainNode.connect(audioCtx.destination);
-                        } catch (e) {
-                            console.log("Boost blokkert av nettleser, spiller uten boost.");
-                        }
-                    }
-                    if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
-                    
-                } catch (err) {
-                    console.error("Playback feilet:", err);
+                // 1. Vekk AudioContext først
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                    source = audioCtx.createMediaElementSource(audio);
+                    gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 10.0;
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
                 }
+                
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                // 2. Start avspilling
+                audio.play().then(() => {
+                    btn.innerHTML = "||";
+                }).catch(err => {
+                    console.log("Play feilet, prøver uten boost...");
+                    audio.play(); // Prøv uten boost hvis det kræsjer
+                });
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -84,9 +80,9 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" crossorigin="anonymous" playsinline></audio>
+                <audio id="audio" playsinline></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
-                <p id="info" style="font-size: 10px; color: #555; margin-top: 15px;">Januar 2026 - lydstream1</p>
+                <p style="font-size: 10px; color: #555; margin-top: 15px;">Januar 2026 - lydstream1</p>
             `;
 
             const audio = document.getElementById('audio');
