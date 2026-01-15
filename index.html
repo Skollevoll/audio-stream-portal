@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="https://cdn.jsdelivr.net"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -13,8 +13,7 @@
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
         audio { display: none; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
-        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; transition: transform 0.1s; }
-        .play-btn:active { transform: scale(0.9); }
+        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
         @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
@@ -30,7 +29,7 @@
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
-        let _supabase, audioCtx, gainNode, hls;
+        let _supabase, audioCtx, gainNode, hls, source;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -46,26 +45,30 @@
             alert("Feil kode.");
         }
 
-        function togglePlay() {
+        async function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
 
-            // 1. Initialiser AudioContext ved aller første klikk
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioCtx.createMediaElementSource(audio);
-                gainNode = audioCtx.createGain();
-                gainNode.gain.value = 10.0;
-                source.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-            }
-
-            // 2. Sjekk om vi skal spille eller pause
             if (audio.paused) {
-                audioCtx.resume().then(() => {
-                    audio.play();
+                try {
+                    await audio.play();
                     btn.innerHTML = "||";
-                });
+
+                    // FØRST NÅR LYDEN SPILLER, kobler vi på 10x Boost
+                    if (!audioCtx) {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        audioCtx = new AudioContext();
+                        source = audioCtx.createMediaElementSource(audio);
+                        gainNode = audioCtx.createGain();
+                        gainNode.gain.value = 10.0;
+                        source.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                    }
+                    if (audioCtx.state === 'suspended') await audioCtx.resume();
+                    
+                } catch (err) {
+                    console.error("Playback feilet:", err);
+                }
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -81,9 +84,8 @@
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokke
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -95,7 +97,6 @@
                 if(box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
             }, 40);
 
-            // HLS Oppsett
             if (window.Hls && window.Hls.isSupported()) {
                 hls = new window.Hls();
                 hls.loadSource(streamUrl);
