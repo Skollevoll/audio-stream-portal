@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- FIX: Fullstendige lenker til bibliotekene (Nødvendig i 2026) -->
-    <script src="https://cdn.jsdelivr.net"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
+    <!-- SKUDDSIKRE LENKER FOR 2026 -->
+    <script src="cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -14,7 +14,7 @@
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
         .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
-        @media (max-width: 500px) { #tc-box { font-size: 34px; } }
+        @media (max-width: 500px) { #tc-box { font-size: 34px; } body { padding: 20px; } }
     </style>
 </head>
 <body>
@@ -31,7 +31,9 @@
         let _supabase, audioCtx, hls, gainNode;
 
         window.onload = function() {
-            if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            if (window.supabase && window.supabase.createClient) {
+                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            }
         };
 
         async function checkAccess() {
@@ -49,19 +51,24 @@
             const btn = document.getElementById('control-btn');
 
             if (audio.paused) {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = audioCtx.createMediaElementSource(audio);
-                    gainNode = audioCtx.createGain();
-                    gainNode.gain.value = 10.0;
-                    source.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                }
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-                
-                audio.play().then(() => {
+                try {
+                    await audio.play();
                     btn.innerHTML = "||";
-                }).catch(err => alert("Vennligst vent 2 sekunder og prøv igjen. Strømmen laster."));
+
+                    // Forsøk å koble til 10x Boost
+                    if (!audioCtx) {
+                        try {
+                            const AudioContext = window.AudioContext || window.webkitAudioContext;
+                            audioCtx = new AudioContext();
+                            const source = audioCtx.createMediaElementSource(audio);
+                            gainNode = audioCtx.createGain();
+                            gainNode.gain.value = 10.0;
+                            source.connect(gainNode);
+                            gainNode.connect(audioCtx.destination);
+                        } catch (e) { console.log("Boost blokkert, spiller vanlig."); }
+                    }
+                    if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+                } catch (err) { console.error("Play feilet:", err); }
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -74,17 +81,16 @@
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
+                <p style="font-size: 10px; color: #444; margin-top: 15px;">Januar 2026 - lydstream1</p>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
-                const hh = String(now.getHours()).padStart(2, '0');
-                const mm = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
+                const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0'), ss = String(now.getSeconds()).padStart(2, '0');
                 const ff = String(Math.floor(now.getMilliseconds() / 40)).padStart(2, '0');
                 const box = document.getElementById('tc-box');
                 if(box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
@@ -94,9 +100,6 @@
                 hls = new window.Hls();
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(window.Hls.Events.ERROR, (event, data) => {
-                    if (data.fatal) hls.recoverMediaError();
-                });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
