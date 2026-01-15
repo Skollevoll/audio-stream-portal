@@ -10,11 +10,19 @@
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
         .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; box-sizing: border-box; }
+        
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
-        audio { width: 100%; margin-top: 20px; }
+        
+        /* Skjuler den originale spilleren */
+        audio { display: none; }
+
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
-        button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; font-size: 18px; }
-        .boost-btn { background: #00ff00; color: #000; margin-top: 20px; display: none; }
+        
+        /* Ny lekker knappestil */
+        .main-btn { padding: 18px 30px; background: #fff; color: #000; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; width: 80%; font-size: 18px; transition: 0.2s; }
+        .main-btn:active { transform: scale(0.95); background: #ccc; }
+        .pause-style { background: #333; color: #fff; border: 1px solid #444; }
+
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
         @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
@@ -24,16 +32,14 @@
     <div id="app" class="player-box">
         <h2>Skriv inn kode</h2>
         <input type="text" id="code" placeholder="DIN KODE" inputmode="numeric">
-        <button onclick="checkAccess()">LOGG INN</button>
+        <button class="main-btn" onclick="checkAccess()">LOGG INN</button>
     </div>
 
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
-        let audioCtx;
-        let source;
-        let gainNode;
+        let audioCtx, source, gainNode, hls;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -49,39 +55,44 @@
             alert("Feil kode. Prøv 833.");
         }
 
+        function togglePlay() {
+            const audio = document.getElementById('audio');
+            const btn = document.getElementById('control-btn');
+
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                source = audioCtx.createMediaElementSource(audio);
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 10.0;
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+            }
+
+            if (audio.paused) {
+                audioCtx.resume();
+                audio.play();
+                btn.innerText = "PAUSE STREAM";
+                btn.classList.add('pause-style');
+            } else {
+                audio.pause();
+                btn.innerText = "START LYD (10X BOOST)";
+                btn.classList.remove('pause-style');
+            }
+        }
+
         function startPlayer() {
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" crossorigin="anonymous" playsinline controls></audio>
-                <button id="unmute-btn" class="boost-btn" style="display:block;">START LYD (10X BOOST)</button>
-                <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet: lydstream1</p>
+                <audio id="audio" crossorigin="anonymous" playsinline></audio>
+                <button id="control-btn" class="main-btn" onclick="togglePlay()">START LYD (10X BOOST)</button>
+                <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Enhet: lydstream1</p>
             `;
 
             const audio = document.getElementById('audio');
-            const unmuteBtn = document.getElementById('unmute-btn');
             const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Initialiser lyd-systemet
-            const initAudio = () => {
-                if (!audioCtx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    audioCtx = new AudioContext();
-                    source = audioCtx.createMediaElementSource(audio);
-                    gainNode = audioCtx.createGain();
-                    gainNode.gain.value = 10.0;
-                    source.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                }
-                audioCtx.resume();
-                audio.play();
-                unmuteBtn.style.display = 'none';
-            };
-
-            // På PC prøver vi å starte med en gang (noen ganger blokkert, da må man bruke knappen)
-            unmuteBtn.onclick = initAudio;
-
-            // Klokke med 8 sek forsinkelse
             function startClock() {
                 const tcBox = document.getElementById('tc-box');
                 function update() {
@@ -99,18 +110,9 @@
             startClock();
 
             if (window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls({ lowLatencyMode: false });
+                hls = new window.Hls({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-                    // Forsøk å starte automatisk på PC hvis mulig
-                    audio.play().then(() => {
-                        // Hvis autoplay funker, vis knappen uansett for å aktivere Boost
-                        unmuteBtn.innerText = "AKTIVER 10X BOOST";
-                    }).catch(() => {
-                        // Hvis blokkert (som på mobil), må knappen brukes
-                    });
-                });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
