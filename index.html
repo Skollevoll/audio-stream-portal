@@ -4,16 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
+    <!-- 2026 Skuddsikre biblioteker -->
     <script src="cdn.jsdelivr.net"></script>
     <script src="cdn.jsdelivr.net"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; }
+        body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
-        .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 400px; margin: 0 auto; }
+        
+        /* Hovedboks */
+        .player-box { 
+            border: 1px solid #333; 
+            padding: 40px; 
+            border-radius: 20px; 
+            background: #111; 
+            max-width: 450px; 
+            margin: 0 auto; 
+            box-sizing: border-box;
+        }
+
+        /* Tidskode-boks */
+        #tc-box { 
+            font-size: 54px; 
+            font-family: 'Courier New', monospace; 
+            color: #ff0000; 
+            background: #000; 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin: 20px 0; 
+            border: 2px solid #333; 
+            text-shadow: 0 0 10px rgba(255,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
         audio { width: 100%; margin-top: 20px; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
-        button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; }
+        button { padding: 15px 30px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%; font-size: 16px; }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; }
+        
+        /* MOBIL-TILPASNING (Viktig for 2026-enheter) */
+        @media (max-width: 500px) {
+            body { padding: 20px; }
+            .player-box { padding: 25px; width: 100%; }
+            #tc-box { font-size: 34px; padding: 10px; margin: 15px 0; }
+            input, button { width: 90%; }
+        }
     </style>
 </head>
 <body>
@@ -43,20 +78,21 @@
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) { startPlayer(); return; }
             }
-            alert("Feil kode eller systemet laster. Prøv 833.");
+            alert("Feil kode. Prøv 833.");
         }
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
-                <div id="tc-box" style="font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #111; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5);">00:00:00:00</div>
-                <audio id="audio" crossorigin="anonymous" controls autoplay playsinline style="width:100%;"></audio>
+                <div id="tc-box">00:00:00:00</div>
+                <audio id="audio" crossorigin="anonymous" controls autoplay playsinline></audio>
                 <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet med 10x Boost</p>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'lydstream1.tail173237.ts.net';
             
+            // Lyd-kontekst for volum-boost
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaElementSource(audio);
             const gainNode = audioCtx.createGain();
@@ -64,16 +100,18 @@
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
+            // Klokkefunksjon med 8 sekunder forsinkelse og 25 fps
             function startClock() {
                 const tcBox = document.getElementById('tc-box');
                 function update() {
                     let now = new Date();
-                    now.setMilliseconds(now.getMilliseconds() - 8000); // 8 sek forsinkelse
+                    now.setMilliseconds(now.getMilliseconds() - 8000); 
+                    
                     const hh = String(now.getHours()).padStart(2, '0');
                     const mm = String(now.getMinutes()).padStart(2, '0');
                     const ss = String(now.getSeconds()).padStart(2, '0');
-                    const ms = now.getMilliseconds();
-                    const ff = String(Math.floor(ms / 40)).padStart(2, '0');
+                    const ff = String(Math.floor(now.getMilliseconds() / 40)).padStart(2, '0');
+                    
                     tcBox.innerText = `${hh}:${mm}:${ss}:${ff}`;
                     requestAnimationFrame(update);
                 }
@@ -82,6 +120,7 @@
 
             startClock();
 
+            // HLS-avspilling
             if (window.Hls && window.Hls.isSupported()) {
                 const hls = new window.Hls({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
@@ -93,7 +132,7 @@
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
-        } // Her manglet det en parentes i din kode
+        }
     </script>
 </body>
 </html>
