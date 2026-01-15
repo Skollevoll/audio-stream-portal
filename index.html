@@ -70,7 +70,7 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
+                <audio id="audio" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
             `;
 
@@ -91,10 +91,15 @@
 
             // Starter HLS
             const HlsLib = window.Hls;
-            if (HlsLib && HlsLib.isSupported()) {
-                const hls = new HlsLib();
-                hls.loadSource(streamUrl);
-                hls.attachMedia(audio);
+           if (HlsLib && HlsLib.isSupported()) {
+        const hls = new HlsLib({
+            xhrSetup: function(xhr, url) {
+                xhr.withCredentials = false; // Hindrer PC-en i å blokkere pga. manglende cookies/sertifikat
+            }
+        });
+        hls.loadSource(streamUrl);
+        hls.attachMedia(audio);
+    }
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             } else {
