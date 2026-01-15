@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- Viktig: Vi bruker HLS.js for at lyden skal fungere på alle enheter -->
-    <script src="cdn.jsdelivr.net"></script>
+    <!-- DISSE LENKENE ER OPPDATERT TIL Å FUNGERE I 2026 -->
+    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -22,14 +23,31 @@
     <div id="app" class="player-box">
         <h2>Kode</h2>
         <input type="text" id="code" placeholder="----" inputmode="numeric">
-        <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; width: 80%; font-weight: bold;" onclick="checkAccess()">LOGG INN</button>
+        <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 80%;" onclick="checkAccess()">LOGG INN</button>
     </div>
 
     <script>
-        function checkAccess() {
-            const code = document.getElementById('code').value;
-            if (code === "833") { startPlayer(); } 
-            else { alert("Feil kode. Prøv 833."); }
+        const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
+        const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
+        let _supabase;
+
+        window.onload = function() {
+            // Sjekker om Supabase faktisk er lastet før vi prøver å bruke det
+            if (window.supabase && window.supabase.createClient) {
+                _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                console.error("Supabase-biblioteket kunne ikke lastes!");
+            }
+        };
+
+        async function checkAccess() {
+            const inputCode = document.getElementById('code').value.toUpperCase();
+            if (inputCode === "833") { startPlayer(); return; }
+            if (_supabase) {
+                const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
+                if (data) { startPlayer(); return; }
+            }
+            alert("Feil kode eller systemet laster fortsatt.");
         }
 
         function togglePlay() {
@@ -48,15 +66,14 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" playsinline controls style="width:100%; margin-top: 20px;"></audio>
-                <br><br>
+                <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
             `;
 
             const audio = document.getElementById('audio');
             const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokkefunksjon (8 sek forsinkelse, 25 fps)
+            // Klokke med 8 sekunder forsinkelse
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -68,13 +85,13 @@
                 if (box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
             }, 40);
 
-            // HLS-oppsett som vi vet fungerer på Tailscale
+            // HLS.js oppsett
             if (window.Hls && window.Hls.isSupported()) {
                 const hls = new window.Hls();
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-                hls.on(window.Hls.Events.MANIFEST_PARSED, function() {
-                    console.log("Stream klar");
+                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                    console.log("Strøm lastet og klar.");
                 });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
