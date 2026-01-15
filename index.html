@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -45,34 +45,41 @@
             alert("Feil kode.");
         }
 
-        async function togglePlay() {
+        function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
 
             if (audio.paused) {
-                // 1. Vekk AudioContext først
-                if (!audioCtx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    audioCtx = new AudioContext();
-                    source = audioCtx.createMediaElementSource(audio);
-                    gainNode = audioCtx.createGain();
-                    gainNode.gain.value = 10.0;
-                    source.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                }
-                
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-                
-                // 2. Start avspilling
                 audio.play().then(() => {
                     btn.innerHTML = "||";
-                }).catch(err => {
-                    console.log("Play feilet, prøver uten boost...");
-                    audio.play(); // Prøv uten boost hvis det kræsjer
+                    // Aktiver Boost ETTER at avspillingen har startet
+                    setTimeout(() => {
+                        activateBoost(audio);
+                    }, 500);
                 });
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
+            }
+        }
+
+        function activateBoost(audioElement) {
+            if (!audioCtx) {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                    source = audioCtx.createMediaElementSource(audioElement);
+                    gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 10.0;
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    console.log("Boost aktivert!");
+                } catch (e) {
+                    console.log("Boost kunne ikke aktiveres, fortsetter med standard volum.");
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
         }
 
@@ -86,7 +93,7 @@
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
             setInterval(() => {
                 let now = new Date();
@@ -100,7 +107,7 @@
             }, 40);
 
             if (window.Hls && window.Hls.isSupported()) {
-                hls = new window.Hls();
+                hls = new window.Hls({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
