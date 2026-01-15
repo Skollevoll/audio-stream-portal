@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -48,14 +48,15 @@
         async function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             if (audio.paused) {
                 try {
                     await audio.play();
                     btn.innerHTML = "||";
 
-                    // FØRST NÅR LYDEN SPILLER, kobler vi på 10x Boost
-                    if (!audioCtx) {
+                    // Kun kjør Boost på PC (mobiler blokkerer ofte AudioContext på HLS)
+                    if (!isMobile && !audioCtx) {
                         const AudioContext = window.AudioContext || window.webkitAudioContext;
                         audioCtx = new AudioContext();
                         source = audioCtx.createMediaElementSource(audio);
@@ -64,7 +65,7 @@
                         source.connect(gainNode);
                         gainNode.connect(audioCtx.destination);
                     }
-                    if (audioCtx.state === 'suspended') await audioCtx.resume();
+                    if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
                     
                 } catch (err) {
                     console.error("Playback feilet:", err);
@@ -81,10 +82,11 @@
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
+                <p id="info" style="font-size: 10px; color: #555; margin-top: 15px;">Tailscale må være på</p>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
             setInterval(() => {
                 let now = new Date();
