@@ -13,28 +13,9 @@
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
         audio { display: none; }
         input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
-        
-        /* Enkel Play/Pause knapp */
-        .play-btn { 
-            padding: 20px; 
-            background: #fff; 
-            color: #000; 
-            border: none; 
-            border-radius: 50%; 
-            cursor: pointer; 
-            width: 80px; 
-            height: 80px; 
-            font-size: 30px; 
-            font-weight: bold; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto;
-            transition: transform 0.1s;
-        }
+        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto; transition: transform 0.1s; }
         .play-btn:active { transform: scale(0.9); }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
-        
         @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
 </head>
@@ -69,37 +50,43 @@
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
 
+            // Opprett AudioContext KUN ved første klikk (påkrevd av nettlesere)
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                source = audioCtx.createMediaElementSource(audio);
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 10.0;
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+            }
+
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
             if (audio.paused) {
-                audio.play();
-                btn.innerHTML = "||"; // Pause-symbol
+                audio.play().then(() => {
+                    btn.innerHTML = "||";
+                }).catch(err => {
+                    console.error("Kunne ikke spille av:", err);
+                });
             } else {
                 audio.pause();
-                btn.innerHTML = "▶"; // Play-symbol
+                btn.innerHTML = "▶";
             }
         }
 
         function startPlayer() {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE</div>
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
+                <p style="font-size: 10px; color: #444; margin-top: 10px;">Tailscale må være aktiv</p>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'lydstream1.tail173237.ts.net';
             
-            source = audioCtx.createMediaElementSource(audio);
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = 10.0;
-            source.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
             function startClock() {
                 const tcBox = document.getElementById('tc-box');
                 function update() {
