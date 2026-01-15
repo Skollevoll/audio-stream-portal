@@ -68,26 +68,34 @@
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            // Hent LIVE TIDSKODE fra Supabase hvert 500ms
-            setInterval(async () => {
-                const { data, error } = await _supabase.from('live_metadata').select('timecode').eq('id', 1).single();
-                if (data && data.timecode) {
-                    document.getElementById('tc-box').innerText = data.timecode;
-                }
-            }, 500);
+            function startClock() {
+    const tcBox = document.getElementById('tc-box');
+    
+    function update() {
+        // Hent nåværende tid
+        let now = new Date();
+        
+        // Trekk fra 8 sekunder (8000 millisekunder) for å matche lydforsinkelsen
+        now.setMilliseconds(now.getMilliseconds() - 8000);
+        
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        
+        // Kalkuler frames (25 fps = 40ms per frame)
+        const ms = now.getMilliseconds();
+        const ff = String(Math.floor(ms / 40)).padStart(2, '0');
+        
+        tcBox.innerText = `${hh}:${mm}:${ss}:${ff}`;
+        
+        requestAnimationFrame(update);
+    }
+    
+    requestAnimationFrame(update);
+}
 
-            if (window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls({ lowLatencyMode: false, maxBufferLength: 20 });
-                hls.loadSource(streamUrl);
-                hls.attachMedia(audio);
-                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-                    audio.onplay = () => audioCtx.resume();
-                    audio.play();
-                });
-            } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-                audio.src = streamUrl;
-            }
-        }
+// Husk å kalle funksjonen inne i startPlayer()
+startClock();
 
     </script>
 </body>
