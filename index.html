@@ -31,6 +31,9 @@
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
         let _supabase;
+        let audioCtx;
+        let source;
+        let gainNode;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -50,8 +53,8 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" crossorigin="anonymous" playsinline></audio>
-                <button id="unmute-btn" class="button boost-btn" style="display:block;">START LYD (BOOST)</button>
+                <audio id="audio" crossorigin="anonymous" playsinline controls></audio>
+                <button id="unmute-btn" class="boost-btn" style="display:block;">START LYD (10X BOOST)</button>
                 <p id="msg" style="font-size: 12px; color: #888; margin-top: 15px;">Tilkoblet: lydstream1</p>
             `;
 
@@ -59,25 +62,26 @@
             const unmuteBtn = document.getElementById('unmute-btn');
             const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            let audioContextStarted = false;
-
-            unmuteBtn.onclick = () => {
-                if (!audioContextStarted) {
+            // Initialiser lyd-systemet
+            const initAudio = () => {
+                if (!audioCtx) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    const audioCtx = new AudioContext();
-                    const source = audioCtx.createMediaElementSource(audio);
-                    const gainNode = audioCtx.createGain();
+                    audioCtx = new AudioContext();
+                    source = audioCtx.createMediaElementSource(audio);
+                    gainNode = audioCtx.createGain();
                     gainNode.gain.value = 10.0;
                     source.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
-                    audioCtx.resume();
-                    audioContextStarted = true;
                 }
+                audioCtx.resume();
                 audio.play();
                 unmuteBtn.style.display = 'none';
-                audio.controls = true;
             };
 
+            // På PC prøver vi å starte med en gang (noen ganger blokkert, da må man bruke knappen)
+            unmuteBtn.onclick = initAudio;
+
+            // Klokke med 8 sek forsinkelse
             function startClock() {
                 const tcBox = document.getElementById('tc-box');
                 function update() {
@@ -98,6 +102,15 @@
                 const hls = new window.Hls({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
+                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                    // Forsøk å starte automatisk på PC hvis mulig
+                    audio.play().then(() => {
+                        // Hvis autoplay funker, vis knappen uansett for å aktivere Boost
+                        unmuteBtn.innerText = "AKTIVER 10X BOOST";
+                    }).catch(() => {
+                        // Hvis blokkert (som på mobil), må knappen brukes
+                    });
+                });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
