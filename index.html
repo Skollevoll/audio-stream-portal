@@ -4,28 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
+    <!-- Viktig: Vi bruker HLS.js for at lyden skal fungere på alle enheter -->
     <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
-        .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; }
-        #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; }
-        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; margin: 0 auto; display: block; }
-        @media (max-width: 500px) { #tc-box { font-size: 34px; } }
+        .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; box-sizing: border-box; }
+        #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
+        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+        input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #222; color: white; width: 80%; margin-bottom: 20px; font-size: 18px; text-align: center; }
+        .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
+        @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
 </head>
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
         <h2>Kode</h2>
-        <input type="text" id="code" placeholder="----" style="padding:15px; width:70%; margin-bottom:20px;">
-        <button style="padding:15px; width:75%; cursor:pointer;" onclick="checkAccess()">LOGG INN</button>
+        <input type="text" id="code" placeholder="----" inputmode="numeric">
+        <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; width: 80%; font-weight: bold;" onclick="checkAccess()">LOGG INN</button>
     </div>
 
     <script>
         function checkAccess() {
-            if (document.getElementById('code').value === "833") { startPlayer(); }
-            else { alert("Feil kode"); }
+            const code = document.getElementById('code').value;
+            if (code === "833") { startPlayer(); } 
+            else { alert("Feil kode. Prøv 833."); }
         }
 
         function togglePlay() {
@@ -42,18 +46,17 @@
 
         function startPlayer() {
             document.getElementById('app').innerHTML = `
-                <div style="color:#0f0; font-size:12px; margin-bottom:10px;">● LIVE</div>
+                <div class="status">● LIVE STREAM</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" playsinline controls style="width:100%;"></audio>
-                <br>
+                <audio id="audio" playsinline controls style="width:100%; margin-top: 20px;"></audio>
+                <br><br>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
             `;
 
             const audio = document.getElementById('audio');
-            // VIKTIG: Vi bruker nå den direkte HLS-URL-en fra MediaMTX
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokke (8 sek forskyvning)
+            // Klokkefunksjon (8 sek forsinkelse, 25 fps)
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -61,18 +64,19 @@
                 const mm = String(now.getMinutes()).padStart(2, '0');
                 const ss = String(now.getSeconds()).padStart(2, '0');
                 const ff = String(Math.floor(now.getMilliseconds() / 40)).padStart(2, '0');
-                document.getElementById('tc-box').innerText = `${hh}:${mm}:${ss}:${ff}`;
+                const box = document.getElementById('tc-box');
+                if (box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
             }, 40);
 
+            // HLS-oppsett som vi vet fungerer på Tailscale
             if (window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls({
-                    xhrSetup: function(xhr) {
-                        xhr.withCredentials = false; // Viktig for Tailscale i 2026
-                    }
-                });
+                const hls = new window.Hls();
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
-            } else {
+                hls.on(window.Hls.Events.MANIFEST_PARSED, function() {
+                    console.log("Stream klar");
+                });
+            } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
         }
