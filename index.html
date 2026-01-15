@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <!-- FIX: Fullstendige lenker til bibliotekene (Nødvendig i 2026) -->
+    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
@@ -19,7 +20,7 @@
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
-        <h2>Skriv inn kode</h2>
+        <h2>Kode</h2>
         <input type="text" id="code" placeholder="----" inputmode="numeric">
         <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; width: 80%;" onclick="checkAccess()">LOGG INN</button>
     </div>
@@ -27,7 +28,7 @@
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
-        let _supabase, audioCtx, hls;
+        let _supabase, audioCtx, hls, gainNode;
 
         window.onload = function() {
             if (window.supabase) _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -48,25 +49,19 @@
             const btn = document.getElementById('control-btn');
 
             if (audio.paused) {
-                // Initialiser AudioContext KUN ved klikk
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const source = audioCtx.createMediaElementSource(audio);
-                    const gainNode = audioCtx.createGain();
+                    gainNode = audioCtx.createGain();
                     gainNode.gain.value = 10.0;
                     source.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
                 }
-                
                 if (audioCtx.state === 'suspended') await audioCtx.resume();
                 
                 audio.play().then(() => {
                     btn.innerHTML = "||";
-                }).catch(err => {
-                    console.log("Play feilet:", err);
-                    // Fallback uten boost hvis det kræsjer
-                    audio.play();
-                });
+                }).catch(err => alert("Vennligst vent 2 sekunder og prøv igjen. Strømmen laster."));
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -82,9 +77,8 @@
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
-            // Klokke (Norsk tid 2026 minus 8 sekunder)
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
