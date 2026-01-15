@@ -4,23 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <!-- SKUDDSIKRE LENKER FOR 2026 -->
-    <script src="cdn.jsdelivr.net"></script>
-    <script src="cdn.jsdelivr.net"></script>
+    <!-- Skuddsikre biblioteker for 2026 -->
+    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
         .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; box-sizing: border-box; }
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
-        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+        .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; transition: transform 0.1s; }
+        .play-btn:active { transform: scale(0.9); }
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
-        @media (max-width: 500px) { #tc-box { font-size: 34px; } body { padding: 20px; } }
+        @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; } #tc-box { font-size: 34px; } }
     </style>
 </head>
 <body>
     <img src="logo.png" alt="Logo" class="logo">
     <div id="app" class="player-box">
-        <h2>Kode</h2>
+        <h2>Skriv inn kode</h2>
         <input type="text" id="code" placeholder="----" inputmode="numeric">
         <button style="padding: 15px 30px; border-radius: 10px; cursor: pointer; width: 80%;" onclick="checkAccess()">LOGG INN</button>
     </div>
@@ -28,7 +29,7 @@
     <script>
         const supabaseUrl = 'https://dugcmjpbrinzgnjcozdf.supabase.co';
         const supabaseKey = 'sb_publishable_QNOLtKtKVh_WKQU9CNhGuw_BusynasQ';
-        let _supabase, audioCtx, hls, gainNode;
+        let _supabase, audioCtx, gainNode, hls, source;
 
         window.onload = function() {
             if (window.supabase && window.supabase.createClient) {
@@ -43,32 +44,35 @@
                 const { data } = await _supabase.from('access_codes').select('*').eq('code', inputCode).eq('is_active', true).single();
                 if (data) { startPlayer(); return; }
             }
-            alert("Feil kode.");
+            alert("Feil kode. Prøv 833.");
         }
 
         async function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             if (audio.paused) {
                 try {
                     await audio.play();
                     btn.innerHTML = "||";
 
-                    // Forsøk å koble til 10x Boost
-                    if (!audioCtx) {
-                        try {
-                            const AudioContext = window.AudioContext || window.webkitAudioContext;
-                            audioCtx = new AudioContext();
-                            const source = audioCtx.createMediaElementSource(audio);
-                            gainNode = audioCtx.createGain();
-                            gainNode.gain.value = 10.0;
-                            source.connect(gainNode);
-                            gainNode.connect(audioCtx.destination);
-                        } catch (e) { console.log("Boost blokkert, spiller vanlig."); }
+                    // AudioContext (Boost) kjøres kun hvis det ikke er mobil (for å unngå blokkering)
+                    if (!isMobile && !audioCtx) {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        audioCtx = new AudioContext();
+                        source = audioCtx.createMediaElementSource(audio);
+                        gainNode = audioCtx.createGain();
+                        gainNode.gain.value = 10.0;
+                        source.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
                     }
                     if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
-                } catch (err) { console.error("Play feilet:", err); }
+                } catch (err) {
+                    console.error("Play feilet:", err);
+                    // Siste utvei: Prøv å spille uten noe som helst dill-dall
+                    audio.play();
+                }
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
@@ -81,25 +85,30 @@
                 <div id="tc-box">00:00:00:00</div>
                 <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
-                <p style="font-size: 10px; color: #444; margin-top: 15px;">Januar 2026 - lydstream1</p>
+                <p style="font-size: 10px; color: #555; margin-top: 15px;">Tailscale må være på (Januar 2026)</p>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
-                const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0'), ss = String(now.getSeconds()).padStart(2, '0');
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
                 const ff = String(Math.floor(now.getMilliseconds() / 40)).padStart(2, '0');
                 const box = document.getElementById('tc-box');
                 if(box) box.innerText = `${hh}:${mm}:${ss}:${ff}`;
             }, 40);
 
             if (window.Hls && window.Hls.isSupported()) {
-                hls = new window.Hls();
+                hls = new window.Hls({ lowLatencyMode: false });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
+                hls.on(window.Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) hls.recoverMediaError();
+                });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
