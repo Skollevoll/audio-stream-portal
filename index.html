@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>833 Audio Portal</title>
-    <script src="https://cdn.jsdelivr.net"></script>
-    <script src="https://cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
+    <script src="cdn.jsdelivr.net"></script>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #000; color: white; padding: 40px; margin: 0; }
         .logo { max-width: 200px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; display: inline-block; }
         .player-box { border: 1px solid #333; padding: 40px; border-radius: 20px; background: #111; max-width: 450px; margin: 0 auto; box-sizing: border-box; }
         #tc-box { font-size: 54px; font-family: 'Courier New', monospace; color: #ff0000; background: #000; padding: 15px; border-radius: 12px; margin: 20px 0; border: 2px solid #333; text-shadow: 0 0 10px rgba(255,0,0,0.5); white-space: nowrap; overflow: hidden; }
-        
         .play-btn { padding: 20px; background: #fff; color: #000; border: none; border-radius: 50%; cursor: pointer; width: 80px; height: 80px; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
-        .boost-btn { margin-top: 20px; background: #444; color: #00ff00; border: 1px solid #00ff00; padding: 10px; border-radius: 8px; cursor: pointer; display: none; font-size: 12px; }
-        
         .status { color: #00ff00; font-size: 12px; margin-top: 10px; font-weight: bold; margin-bottom: 20px; }
-        @media (max-width: 500px) { body { padding: 20px; } .player-box { padding: 25px; width: 100%; } #tc-box { font-size: 34px; } }
     </style>
 </head>
 <body>
@@ -46,40 +42,32 @@
             alert("Feil kode.");
         }
 
-        function togglePlay() {
+        async function togglePlay() {
             const audio = document.getElementById('audio');
             const btn = document.getElementById('control-btn');
-            const boostBtn = document.getElementById('boost-trigger');
 
             if (audio.paused) {
-                audio.play();
+                // VIKTIG: Start lyden FØRST
+                await audio.play();
                 btn.innerHTML = "||";
-                boostBtn.style.display = "inline-block";
+
+                // Koble på boost etter at vi vet lyden er i gang
+                if (!audioCtx) {
+                    try {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        audioCtx = new AudioContext();
+                        source = audioCtx.createMediaElementSource(audio);
+                        gainNode = audioCtx.createGain();
+                        gainNode.gain.value = 10.0;
+                        source.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        console.log("Boost tilkoblet!");
+                    } catch (e) { console.log("Boost-feil:", e); }
+                }
+                if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
             } else {
                 audio.pause();
                 btn.innerHTML = "▶";
-            }
-        }
-
-        function activateBoost() {
-            const audio = document.getElementById('audio');
-            const boostBtn = document.getElementById('boost-trigger');
-            
-            try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    source = audioCtx.createMediaElementSource(audio);
-                    gainNode = audioCtx.createGain();
-                    gainNode.gain.value = 10.0;
-                    source.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                }
-                audioCtx.resume();
-                boostBtn.innerText = "10X BOOST AKTIV";
-                boostBtn.style.borderColor = "white";
-                boostBtn.style.color = "white";
-            } catch (e) {
-                alert("Nettleseren blokkerer boost. Prøv å lytte uten.");
             }
         }
 
@@ -87,15 +75,14 @@
             document.getElementById('app').innerHTML = `
                 <div class="status">● LIVE</div>
                 <div id="tc-box">00:00:00:00</div>
-                <audio id="audio" playsinline controls style="width:100%; margin-bottom: 20px;"></audio>
+                <audio id="audio" crossorigin="anonymous" playsinline style="display:none;"></audio>
                 <button id="control-btn" class="play-btn" onclick="togglePlay()">▶</button>
-                <br>
-                <button id="boost-trigger" class="boost-btn" onclick="activateBoost()">AKTIVER 10X BOOST</button>
             `;
 
             const audio = document.getElementById('audio');
-            const streamUrl = 'https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
+            const streamUrl = 'Https://lydstream1.tail173237.ts.net/mystream/index.m3u8';
             
+            // Klokke (8 sek forskyvning)
             setInterval(() => {
                 let now = new Date();
                 now.setMilliseconds(now.getMilliseconds() - 8000); 
@@ -111,6 +98,9 @@
                 hls = new window.Hls();
                 hls.loadSource(streamUrl);
                 hls.attachMedia(audio);
+                hls.on(window.Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) hls.recoverMediaError(); // Fikser ERR_NETWORK_CHANGED automatisk
+                });
             } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
                 audio.src = streamUrl;
             }
